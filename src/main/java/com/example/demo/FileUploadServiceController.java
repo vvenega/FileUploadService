@@ -51,7 +51,6 @@ public class FileUploadServiceController {
     public ResponseEntity<String> handlefileupload(@RequestParam("selectedfiles") MultipartFile[] multifile,
     		@RequestParam("username")String username){
         String message="";
-        FileOutputStream fos =null;
         
         fileProxy = new FileUploadDaoProxy();
         proxy= new ListingDaoProxy();
@@ -72,21 +71,18 @@ public class FileUploadServiceController {
          	    String ext = filename.substring(index);
          	    newname = newname+"_"+date+ext;
          	    
-         	   fos = new FileOutputStream(PATH+newname);
+         	
          	   
-         	  fos.write(file);
-              fileProxy.setRestTemplate(restTemplate).setFileLoadRecord(username, newname, "output", "procesando");
-              String outputfile = proxy.setRestTemplate(restTemplate).postExcelDao(username,newname);
-              fileProxy.setRestTemplate(restTemplate).updateFileLoadRecord(username, newname,"Termino.",outputfile);
+         	  
 
-           /* try (FileOutputStream fos = new FileOutputStream(PATH+newname)) {
+           try (FileOutputStream fos = new FileOutputStream(PATH+newname)) {
                 fos.write(file);
                 fileProxy.setFileLoadRecord(username, newname, "output", "procesando");
                 String outputfile = proxy.postExcelDao(username,newname);
                 fileProxy.updateFileLoadRecord(username, newname,"Termino.",outputfile);
             }catch(Exception e) {
             	System.err.println(e.getMessage());
-            }*/
+            }
             }
             
              }
@@ -95,14 +91,6 @@ public class FileUploadServiceController {
             System.err.println(e.getMessage());
             message="failed";
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(message);
-        }finally {
-        	
-        	try {
-        		if(fos!=null)
-        			fos.close();
-        	}catch(Exception e) {
-        		System.err.println(e.getMessage());
-        	}
         }
     }
     
