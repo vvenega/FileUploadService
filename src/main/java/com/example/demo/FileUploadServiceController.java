@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,23 +31,31 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RestController
 public class FileUploadServiceController {
 	
-	//private static final String VALID_CUSTOMER = "http://localhost:4200";
 	private static final String VALID_CUSTOMER = "*";
-	private static final String PATH="/users/victorvenegas/desktop/testupload/";
+	private static final String PATH=Config.getProperty("PATH_DIRECTORY");
 	
     Map<String, MultipartFile> filemap=new HashMap<String, MultipartFile>();
     
-    @Autowired
+    //@Autowired
 	private ListingDaoProxy proxy;
     
-    @Autowired
+    //@Autowired
     private FileUploadDaoProxy fileProxy;
     
+	@Autowired
+	RestTemplate restTemplate;
+	
+	
     @CrossOrigin(origins = VALID_CUSTOMER)
     @PostMapping("/uploadfile")
     public ResponseEntity<String> handlefileupload(@RequestParam("selectedfiles") MultipartFile[] multifile,
     		@RequestParam("username")String username){
         String message="";
+        FileOutputStream fos =null;
+        
+        fileProxy = new FileUploadDaoProxy();
+        proxy= new ListingDaoProxy();
+        
         try {
             message="succesfull";
             for(int i=0;i<multifile.length;i++){
@@ -62,23 +71,38 @@ public class FileUploadServiceController {
          	    String newname=username;
          	    String ext = filename.substring(index);
          	    newname = newname+"_"+date+ext;
-            try (FileOutputStream fos = new FileOutputStream(PATH+newname)) {
+         	    
+         	   fos = new FileOutputStream(PATH+newname);
+         	   
+         	  fos.write(file);
+              fileProxy.setRestTemplate(restTemplate).setFileLoadRecord(username, newname, "output", "procesando");
+              String outputfile = proxy.setRestTemplate(restTemplate).postExcelDao(username,newname);
+              fileProxy.setRestTemplate(restTemplate).updateFileLoadRecord(username, newname,"Termino.",outputfile);
+
+           /* try (FileOutputStream fos = new FileOutputStream(PATH+newname)) {
                 fos.write(file);
-                //fos.close // no need, try-with-resources auto close
                 fileProxy.setFileLoadRecord(username, newname, "output", "procesando");
                 String outputfile = proxy.postExcelDao(username,newname);
                 fileProxy.updateFileLoadRecord(username, newname,"Termino.",outputfile);
             }catch(Exception e) {
-            	e.printStackTrace();
-            }
+            	System.err.println(e.getMessage());
+            }*/
             }
             
              }
             return ResponseEntity.status(HttpStatus.OK).body(message);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println(e.getMessage());
             message="failed";
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(message);
+        }finally {
+        	
+        	try {
+        		if(fos!=null)
+        			fos.close();
+        	}catch(Exception e) {
+        		System.err.println(e.getMessage());
+        	}
         }
     }
     
@@ -86,9 +110,10 @@ public class FileUploadServiceController {
     @GetMapping("/getFileLoads/{username}")
     public List<FileLoadBean> getFileLoads(@PathVariable String username){
     	List<FileLoadBean> lst = new ArrayList<FileLoadBean>();
+    	fileProxy = new FileUploadDaoProxy();
     	
     	try {
-    		lst = fileProxy.getFileLoads(username);
+    		lst = fileProxy.setRestTemplate(restTemplate).getFileLoads(username);
     	}catch(Exception e) {
     		e.printStackTrace();
     		lst =new ArrayList<FileLoadBean>();
